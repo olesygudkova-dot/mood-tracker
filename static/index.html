@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mood Tracker</title>
+<style>
+  :root {
+    --bg: radial-gradient(circle at 10% 10%, #f6dff4 0%, transparent 30%),
+          radial-gradient(circle at 90% 15%, #d7ecff 0%, transparent 35%),
+          linear-gradient(135deg, #eef5ff 0%, #f8f0fb 48%, #e8f5f2 100%);
+    --card: rgba(255, 255, 255, 0.62);
+    --card-solid: rgba(255, 255, 255, 0.88);
+    --card-border: rgba(255, 255, 255, 0.82);
+    --text: #26334a;
+    --text-soft: #78839a;
+    --accent: #7c83f5;
+    --accent-hover: #686fe3;
+    --accent-2: #c987dc;
+    --shadow: 0 24px 70px rgba(89, 103, 150, 0.14);
+    --day-bg: rgba(255, 255, 255, 0.55);
+    --day-hover: rgba(255, 255, 255, 0.95);
+    --good: #68c9a3;
+    --mid: #f2bd69;
+    --bad: #eb8498;
+  }
+  [data-theme="dark"] {
+    --bg: radial-gradient(circle at 15% 10%, #392d52 0%, transparent 34%),
+          radial-gradient(circle at 85% 15%, #243e58 0%, transparent 34%),
+          linear-gradient(135deg, #121827 0%, #1b2034 52%, #14252a 100%);
+    --card: rgba(27, 34, 53, 0.72);
+    --card-solid: rgba(28, 35, 55, 0.96);
+    --card-border: rgba(255, 255, 255, 0.09);
+    --text: #f1f4fb;
+    --text-soft: #aab4c9;
+    --accent: #9298ff;
+    --accent-hover: #a8adff;
+    --accent-2: #d08be2;
+    --shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+    --day-bg: rgba(255, 255, 255, 0.055);
+    --day-hover: rgba(255, 255, 255, 0.11);
+    --good: #71d3ae;
+    --mid: #f4c36f;
+    --bad: #f08da1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    position: relative;
+    overflow-x: hidden;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 28px;
+    transition: background .5s ease, color .35s ease;
+  }
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: .22;
+    pointer-events: none;
+    z-index: -1;
+    animation: floatBlob 10s ease-in-out infinite alternate;
+  }
+  body::before { background: #b8a9ff; left: -100px; top: 35%; }
+  body::after { background: #8de1d1; right: -100px; top: 8%; animation-delay: -4s; }
+
+  .container { max-width: 1180px; margin: 0 auto; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px;
+    animation: pageDown .65s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .logo {
+    font-size: 25px; font-weight: 800; letter-spacing: -.6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo::after {
+    content: "твои эмоции каждый день";
+    font-size: 11px; font-weight: 600; color: var(--text-soft);
+    letter-spacing: .2px; padding: 6px 10px; border-radius: 99px;
+    background: var(--day-bg); border: 1px solid var(--card-border);
+  }
+  .theme-btn {
+    background: var(--card); border: 1px solid var(--card-border);
+    color: var(--text); padding: 10px 15px; border-radius: 14px;
+    cursor: pointer; font-size: 13px; font-weight: 650;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 8px 25px rgba(70,80,120,.08);
+    transition: transform .25s, background .25s, box-shadow .25s;
+  }
+  .theme-btn:hover { transform: translateY(-2px); background: var(--day-hover); }
+
+  .card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 26px;
+    padding: 26px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    transition: transform .3s ease, box-shadow .3s ease, background .3s;
+  }
+  .card:hover { box-shadow: 0 28px 80px rgba(89,103,150,.17); }
+
+  h2 { font-size: 19px; font-weight: 750; margin-bottom: 17px; color: var(--text); }
+
+  #authScreen {
+    max-width: 620px; margin: 8vh auto 0; padding: 38px;
+    animation: popIn .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  #authScreen h2 { font-size: 28px; margin-bottom: 24px; }
+  #authScreen::before {
+    content: "✦"; position: absolute; right: 34px; top: 25px;
+    font-size: 34px; color: var(--accent); opacity: .65;
+  }
+
+  input, textarea, select {
+    background: var(--day-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 12px 15px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border .25s, box-shadow .25s, transform .25s, background .25s;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-soft); }
+  input:focus, textarea:focus {
+    border-color: rgba(124,131,245,.7);
+    box-shadow: 0 0 0 4px rgba(124,131,245,.12);
+    background: var(--day-hover);
+    transform: translateY(-1px);
+  }
+
+  button {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: none; border-radius: 13px;
+    padding: 11px 18px; font-size: 14px; font-weight: 650;
+    cursor: pointer;
+    transition: transform .22s ease, box-shadow .22s ease, filter .22s;
+    margin-right: 8px; margin-bottom: 8px;
+    box-shadow: 0 8px 20px rgba(124,131,245,.18);
+  }
+  button:hover { filter: brightness(1.04); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(124,131,245,.27); }
+  button:active { transform: translateY(0) scale(.98); }
+  button.ghost {
+    background: var(--day-bg); color: var(--text);
+    border: 1px solid var(--card-border); box-shadow: none;
+  }
+  button.ghost:hover { background: var(--day-hover); }
+
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 140px; }
+  .hidden { display: none !important; }
+
+  .calendar-card { overflow: hidden; }
+  .cal-header {
+    display: grid; grid-template-columns: 44px 1fr 44px;
+    align-items: center; gap: 10px; margin-bottom: 19px;
+  }
+  .cal-header .ghost {
+    width: 44px; height: 44px; padding: 0;
+    border-radius: 14px; font-size: 21px; margin: 0;
+  }
+  #monthLabel {
+    text-align: center; font-size: 25px; font-weight: 800;
+    letter-spacing: -.5px; text-transform: capitalize;
+  }
+  .month-subtitle {
+    text-align: center; color: var(--text-soft);
+    font-size: 12px; margin-top: 3px;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 9px; }
+  .cal-dow {
+    text-align: center; font-size: 11px; font-weight: 750;
+    color: var(--text-soft); padding: 6px 0 9px;
+    text-transform: uppercase; letter-spacing: .7px;
+  }
+  .cal-day {
+    aspect-ratio: 1.08;
+    background: var(--day-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 17px;
+    padding: 10px;
+    cursor: pointer;
+    display: flex; flex-direction: column; justify-content: space-between;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), background .25s, box-shadow .25s, border .25s;
+    min-height: 76px; position: relative; overflow: hidden;
+  }
+  .cal-day:hover {
+    background: var(--day-hover);
+    transform: translateY(-4px) scale(1.025);
+    box-shadow: 0 13px 30px rgba(77,91,140,.13);
+    border-color: rgba(124,131,245,.28);
+  }
+  .cal-day.empty { background: transparent; border: none; cursor: default; }
+  .cal-day.empty:hover { transform: none; }
+  .cal-day.today { border: 2px solid var(--accent); box-shadow: 0 0 0 4px rgba(124,131,245,.09); }
+  .cal-day .num { font-size: 13px; font-weight: 750; position: relative; z-index: 1; }
+  .cal-day .dot {
+    width: 13px; height: 13px; border-radius: 50%;
+    align-self: center; margin-bottom: 3px;
+    box-shadow: 0 0 0 5px rgba(255,255,255,.18), 0 5px 12px rgba(0,0,0,.08);
+    animation: dotPop .45s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .cal-day .dot.good { background: var(--good); }
+  .cal-day .dot.mid { background: var(--mid); }
+  .cal-day .dot.bad { background: var(--bad); }
+
+  #calGrid.month-changing { animation: calendarIn .35s cubic-bezier(.2,.8,.2,1); }
+
+  #mainScreen > .card { animation: sectionUp .65s cubic-bezier(.2,.8,.2,1) both; }
+  #mainScreen > .card:nth-child(2) { animation-delay: .08s; }
+  #mainScreen > .card:nth-child(3) { animation-delay: .16s; }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(25, 30, 50, .38);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+    animation: overlayIn .3s ease both;
+  }
+  .modal {
+    background: var(--card-solid);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid var(--card-border);
+    border-radius: 30px;
+    padding: 30px;
+    max-width: 620px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 35px 100px rgba(35,45,80,.25);
+    animation: modalIn .55s cubic-bezier(.18,1.15,.4,1) both;
+  }
+  .modal h3 { margin-bottom: 16px; font-size: 20px; }
+  #modalDate { font-size: 25px; letter-spacing: -.4px; }
+  .modal-close {
+    float: right;
+    background: var(--day-bg); color: var(--text);
+    font-size: 24px; padding: 0; margin: -4px -2px 0 0;
+    line-height: 1; width: 38px; height: 38px; border-radius: 12px;
+    box-shadow: none;
+  }
+  .modal-close:hover { background: var(--day-hover); transform: rotate(4deg) scale(1.05); }
+
+  .entry-item {
+    background: var(--day-bg);
+    border-radius: 16px;
+    padding: 14px; margin-bottom: 10px;
+    border: 1px solid var(--card-border);
+    animation: entryIn .4s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .entry-item .hour { font-weight: 750; color: var(--accent); }
+  .tags-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .tag-pill {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; padding: 4px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 650;
+  }
+
+  pre {
+    background: var(--day-bg); padding: 15px; border-radius: 15px;
+    overflow-x: auto; font-size: 12px;
+    border: 1px solid var(--card-border);
+  }
+
+  .toast {
+    position: fixed; bottom: 25px; right: 25px;
+    background: var(--card-solid);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    padding: 14px 18px; border-radius: 16px;
+    box-shadow: 0 18px 50px rgba(50,60,100,.2);
+    z-index: 200;
+    animation: toastIn .45s cubic-bezier(.2,.8,.2,1);
+    font-size: 13px; font-weight: 650;
+  }
+
+  /* часы */
+  .clock-picker {
+    display: flex; align-items: center; justify-content: center;
+    gap: 16px;
+    background: var(--day-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: background .6s ease, border-color .6s ease;
+  }
+  .clock-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    font-size: 20px; padding: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .clock-display { text-align: center; min-width: 120px; }
+  .clock-icon {
+    font-size: 34px; line-height: 1;
+    margin-bottom: 4px;
+    transition: transform .35s cubic-bezier(.2,.8,.2,1);
+  }
+  .clock-time {
+    font-size: 28px; font-weight: 800;
+    letter-spacing: -.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock-label {
+    font-size: 11px; color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    margin-top: 2px;
+  }
+  .clock-picker.morning { background: rgba(255, 220, 150, .35); }
+  .clock-picker.day     { background: rgba(180, 225, 255, .4); }
+  .clock-picker.evening { background: rgba(255, 180, 150, .3); }
+  .clock-picker.night   { background: rgba(80, 100, 180, .3); }
+  [data-theme="dark"] .clock-picker.morning { background: rgba(255, 200, 100, .12); }
+  [data-theme="dark"] .clock-picker.day     { background: rgba(100, 180, 255, .14); }
+  [data-theme="dark"] .clock-picker.evening { background: rgba(255, 130, 100, .14); }
+  [data-theme="dark"] .clock-picker.night   { background: rgba(80, 100, 200, .2); }
+
+  /* слайдер настроения */
+  .mood-slider-wrap {
+    background: var(--day-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .mood-face {
+    font-size: 46px; line-height: 1;
+    margin-bottom: 8px;
+    transition: transform .3s cubic-bezier(.2,.8,.2,1);
+    display: inline-block;
+  }
+  .mood-value {
+    font-size: 26px; font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 8px;
+  }
+  .mood-label {
+    font-size: 12px; color: var(--text-soft);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    margin-bottom: 12px;
+  }
+  input[type="range"].mood-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #6ea8ff 0%, #8ec5ff 25%, #b8e0a8 50%, #c8e88f 75%, #7ed957 100%);
+    outline: none;
+    margin: 6px 0 4px;
+    padding: 0;
+    border: none;
+  }
+  input[type="range"].mood-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid var(--accent);
+    box-shadow: 0 4px 14px rgba(124,131,245,.4);
+    cursor: pointer;
+    transition: transform .18s ease;
+  }
+  input[type="range"].mood-range::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type="range"].mood-range::-moz-range-thumb {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid var(--accent);
+    box-shadow: 0 4px 14px rgba(124,131,245,.4);
+    cursor: pointer;
+  }
+  .mood-scale {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-soft);
+    margin-top: 4px;
+  }
+
+  /* теги */
+  .tags-section {
+    background: var(--day-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .tags-title {
+    font-size: 12px;
+    color: var(--text-soft);
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    margin-bottom: 10px;
+  }
+  .tags-wrap {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .tag-chip {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .18s, background .25s, color .25s, box-shadow .25s;
+    user-select: none;
+    margin: 0;
+    box-shadow: none;
+  }
+  .tag-chip:hover { transform: translateY(-2px); background: var(--day-hover); }
+  .tag-chip.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(124,131,245,.25);
+  }
+  .tag-new-row {
+    display: flex; gap: 8px; margin-top: 12px;
+  }
+  .tag-new-row input {
+    margin: 0;
+    flex: 1;
+  }
+  .tag-new-row button {
+    margin: 0;
+    padding: 11px 18px;
+  }
+
+  @keyframes pageDown { from { opacity:0; transform:translateY(-18px); } to { opacity:1; transform:none; } }
+  @keyframes sectionUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:none; } }
+  @keyframes popIn { from { opacity:0; transform:scale(.96) translateY(16px); } to { opacity:1; transform:none; } }
+  @keyframes modalIn { from { opacity:0; transform:translateY(80px) scale(.9); } to { opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes calendarIn { from { opacity:.25; transform:translateY(8px) scale(.985); } to { opacity:1; transform:none; } }
+  @keyframes dotPop { from { transform:scale(0); } to { transform:scale(1); } }
+  @keyframes entryIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:none; } }
+  @keyframes toastIn { from { opacity:0; transform:translateY(15px) scale(.96); } to { opacity:1; transform:none; } }
+  @keyframes floatBlob { from { transform:translate3d(0,0,0) scale(1); } to { transform:translate3d(30px,-20px,0) scale(1.08); } }
+
+
+
+  /* кнопка открытия чата */
+  .chat-launch-card {
+    animation: sectionUp .65s cubic-bezier(.2,.8,.2,1) .16s both;
+    margin-bottom: 20px;
+  }
+  .chat-launch {
+    width: 100%; margin: 0; padding: 18px 20px;
+    display: flex; align-items: center; gap: 15px;
+    text-align: left; border-radius: 22px;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: var(--shadow);
+  }
+  .chat-launch:hover {
+    background: var(--day-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 25px 65px rgba(89,103,150,.18);
+  }
+  .chat-launch-icon {
+    width: 48px; height: 48px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    border-radius: 16px; font-size: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 9px 22px rgba(124,131,245,.24);
+  }
+  .chat-launch-text { display:flex; flex-direction:column; gap:4px; flex:1; }
+  .chat-launch-text b { font-size:15px; }
+  .chat-launch-text small { color:var(--text-soft); font-size:12px; font-weight:500; }
+  .chat-launch-arrow { font-size:25px; color:var(--accent); flex:none; transition:transform .22s; }
+  .chat-launch:hover .chat-launch-arrow { transform:translateX(4px); }
+
+  .chat-modal {
+    max-width: 760px;
+    padding: 26px;
+  }
+  .chat-modal .chat-log {
+    max-height: 390px;
+    min-height: 90px;
+  }
+  .chat-modal .chat-chart svg { height: 230px; }
+  @media (max-width:700px) {
+    .chat-launch { padding:15px; }
+    .chat-launch-icon { width:42px; height:42px; border-radius:14px; }
+    .chat-launch-text small { font-size:11px; }
+    .chat-modal { padding:20px; max-height:92vh; }
+    .chat-modal .chat-log { max-height:45vh; }
+  }
+
+  /* аналитический чат */
+  .chat-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+  .chat-subtitle { color:var(--text-soft); font-size:12px; line-height:1.45; }
+  .chat-reset { margin:0; width:42px; height:42px; padding:0; flex:none; }
+  .chat-log { display:flex; flex-direction:column; gap:10px; margin:18px 0 14px; max-height:430px; overflow:auto; padding-right:3px; }
+  .chat-bubble { max-width:88%; padding:13px 16px; border-radius:18px; line-height:1.55; font-size:14px; animation:chatBubbleIn .35s ease both; }
+  .chat-bubble.bot { align-self:flex-start; background:var(--day-bg); border:1px solid var(--card-border); }
+  .chat-bubble.system { align-self:flex-end; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; }
+  .chat-options { display:flex; flex-wrap:wrap; gap:8px; }
+  .chat-options button { margin:0; }
+  .chat-chart { margin:12px 0 16px; background:var(--day-bg); border:1px solid var(--card-border); border-radius:20px; padding:14px; overflow:hidden; animation:popIn .35s ease both; }
+  .chat-chart-title { font-size:12px; color:var(--text-soft); margin-bottom:8px; }
+  .chat-chart svg { width:100%; height:220px; display:block; overflow:visible; }
+  .chat-stat-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
+  .chat-stat { background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:10px; }
+  .chat-stat b { display:block; font-size:17px; }
+  .chat-stat span { color:var(--text-soft); font-size:10px; }
+
+  .chat-input-row { display:flex; gap:8px; margin-top:14px; }
+  .chat-input-row input { margin:0; flex:1; }
+  .chat-input-row button { margin:0; flex:none; }
+  @media (max-width:700px) { .chat-input-row{flex-direction:column}.chat-input-row button{width:100%} }
+
+  @keyframes chatBubbleIn { from {opacity:0; transform:translateY(8px) scale(.98)} to {opacity:1; transform:none} }
+  @media (max-width:700px) { .chat-bubble{max-width:96%}.chat-stat-grid{grid-template-columns:1fr 1fr}.chat-chart svg{height:190px} }
+
+  @media (max-width: 700px) {
+    body { padding: 14px; }
+    .logo { font-size: 20px; }
+    .logo::after { display:none; }
+    .card { padding: 18px; border-radius: 21px; }
+    #authScreen { margin-top: 5vh; padding: 25px; }
+    #authScreen h2 { font-size: 24px; }
+    #monthLabel { font-size: 20px; }
+    .cal-grid { gap: 5px; }
+    .cal-day { min-height: 52px; border-radius: 12px; padding: 7px; }
+    .cal-day .num { font-size: 12px; }
+    .cal-day .dot { width: 9px; height: 9px; box-shadow:none; }
+    .cal-dow { font-size: 9px; }
+    .modal { padding: 22px; border-radius: 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="topbar">
+    <div class="logo">🌤 Mood Tracker</div>
+    <button class="theme-btn" onclick="toggleTheme()">
+      <span id="themeIcon">🌙</span> <span id="themeText">Тёмная тема</span>
+    </button>
+  </div>
+
+  <div id="authScreen" class="card">
+    <h2>Вход в систему</h2>
+    <div class="row">
+      <input id="email" placeholder="Email" value="anna@example.com">
+      <input id="pass" type="password" placeholder="Пароль" value="password">
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <input id="name" placeholder="Имя (для регистрации)" value="User">
+    </div>
+    <div style="margin-top:12px;">
+      <button onclick="login()">Войти</button>
+      <button class="ghost" onclick="register()">Зарегистрироваться</button>
+    </div>
+  </div>
+
+  <div id="mainScreen" class="hidden">
+
+    <div class="card calendar-card">
+      <div class="cal-header">
+        <button class="ghost" onclick="changeMonth(-1)">←</button>
+        <div>
+          <h2 id="monthLabel" style="margin:0;">Месяц</h2>
+          <div class="month-subtitle">Нажми на день, чтобы добавить настроение</div>
+        </div>
+        <button class="ghost" onclick="changeMonth(1)">→</button>
+      </div>
+      <div class="cal-grid" id="calDow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="chat-launch-card">
+      <button class="chat-launch" onclick="openChat()">
+        <span class="chat-launch-icon">💬</span>
+        <span class="chat-launch-text">
+          <b>Чат-помощник</b>
+          <small>Обсуди своё настроение и результаты аналитики</small>
+        </span>
+        <span class="chat-launch-arrow">→</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="chatModal" class="modal-overlay hidden" onclick="if(event.target===this) closeChat()">
+  <div class="modal chat-modal">
+    <button class="modal-close" onclick="closeChat()">×</button>
+    <div class="chat-head">
+      <div>
+        <h3 style="margin-bottom:4px;">💬 Чат-помощник</h3>
+        <div class="chat-subtitle">Разбирает динамику настроения и помогает обсудить результаты</div>
+      </div>
+      <button class="ghost chat-reset" onclick="chat('start')">↻</button>
+    </div>
+    <div id="chatLog" class="chat-log"></div>
+    <div id="chatChart" class="chat-chart hidden"></div>
+    <div id="chatOptions" class="chat-options"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" placeholder="Напиши, что произошло…" onkeydown="if(event.key==='Enter') sendChatMessage()">
+      <button onclick="sendChatMessage()">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<div id="dayModal" class="modal-overlay hidden" onclick="if(event.target===this) closeDay()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeDay()">×</button>
+    <h3 id="modalDate">Дата</h3>
+    <div id="modalEntries"></div>
+
+    <h3 style="margin-top:22px;">Как ты себя чувствовал(а)?</h3>
+
+    <div class="clock-picker">
+      <button class="clock-btn ghost" onclick="changeHour(-1)">−</button>
+      <div class="clock-display">
+        <div class="clock-icon" id="clockIcon">🌙</div>
+        <div class="clock-time" id="clockTime">00:00</div>
+        <div class="clock-label" id="clockLabel">ночь</div>
+      </div>
+      <button class="clock-btn ghost" onclick="changeHour(1)">+</button>
+    </div>
+    <input type="hidden" id="mHour" value="0">
+
+    <div class="mood-slider-wrap">
+      <div class="mood-face" id="moodFace">😐</div>
+      <div class="mood-value" id="moodValue">5 / 10</div>
+      <div class="mood-label" id="moodLabel">средне</div>
+      <input type="range" id="mScore" class="mood-range" min="1" max="10" value="5">
+      <div class="mood-scale"><span>1</span><span>5</span><span>10</span></div>
+    </div>
+
+    <div class="tags-section">
+      <div class="tags-title">Теги</div>
+      <div class="tags-wrap" id="tagsWrap"></div>
+      <div class="tag-new-row">
+        <input id="newTagInput" placeholder="Свой тег...">
+        <button class="ghost" onclick="addNewTag()">+</button>
+      </div>
+    </div>
+
+    <textarea id="mNote" rows="2" placeholder="Заметка"></textarea>
+    <button onclick="saveMood()">Сохранить</button>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8080/api';
+let token = localStorage.getItem('token') || '';
+let currentMonth = new Date();
+let currentDay = null;
+let currentHour = new Date().getHours();
+let selectedTags = new Set();
+let availableTags = [];
+
+/* ЧАСЫ */
+function changeHour(delta) {
+  currentHour = (currentHour + delta + 24) % 24;
+  updateClock();
+}
+function updateClock() {
+  const mh = document.getElementById('mHour');
+  if (!mh) return;
+  mh.value = currentHour;
+  document.getElementById('clockTime').textContent = String(currentHour).padStart(2,'0') + ':00';
+
+  const picker = document.querySelector('.clock-picker');
+  const icon = document.getElementById('clockIcon');
+  const label = document.getElementById('clockLabel');
+
+  picker.classList.remove('morning','day','evening','night');
+
+  if (currentHour >= 6 && currentHour < 12) {
+    picker.classList.add('morning'); icon.textContent = '🌅'; label.textContent = 'утро';
+  } else if (currentHour >= 12 && currentHour < 18) {
+    picker.classList.add('day'); icon.textContent = '☀️'; label.textContent = 'день';
+  } else if (currentHour >= 18 && currentHour < 24) {
+    picker.classList.add('evening'); icon.textContent = '🌇'; label.textContent = 'вечер';
+  } else {
+    picker.classList.add('night'); icon.textContent = '🌙'; label.textContent = 'ночь';
+  }
+
+  icon.style.transform = 'scale(1.2)';
+  setTimeout(() => icon.style.transform = 'scale(1)', 180);
+}
+
+/* СЛАЙДЕР НАСТРОЕНИЯ */
+function updateMoodSlider() {
+  const v = parseInt(document.getElementById('mScore').value);
+  const face = document.getElementById('moodFace');
+  const val = document.getElementById('moodValue');
+  const lbl = document.getElementById('moodLabel');
+
+  val.textContent = v + ' / 10';
+
+  let emoji = '😐', label = 'средне';
+  if (v <= 2) { emoji = '😢'; label = 'очень грустно'; }
+  else if (v <= 4) { emoji = '😔'; label = 'грустно'; }
+  else if (v <= 6) { emoji = '😐'; label = 'средне'; }
+  else if (v <= 8) { emoji = '🙂'; label = 'хорошо'; }
+  else { emoji = '😄'; label = 'отлично'; }
+
+  face.textContent = emoji;
+  lbl.textContent = label;
+
+  face.style.transform = 'scale(1.2)';
+  setTimeout(() => face.style.transform = 'scale(1)', 180);
+}
+
+/* ТЕГИ */
+function renderTags() {
+  const wrap = document.getElementById('tagsWrap');
+  wrap.innerHTML = availableTags.map(t => {
+    const active = selectedTags.has(t.name) ? 'active' : '';
+    return `<button class="tag-chip ${active}" onclick="toggleTag('${t.name}')">${t.name}</button>`;
+  }).join('');
+}
+function toggleTag(name) {
+  if (selectedTags.has(name)) selectedTags.delete(name);
+  else selectedTags.add(name);
+  renderTags();
+}
+async function addNewTag() {
+  const input = document.getElementById('newTagInput');
+  const name = input.value.trim();
+  if (!name) return;
+
+  if (!availableTags.find(t => t.name === name)) {
+    availableTags.push({id: 0, name, color: ''});
+  }
+  selectedTags.add(name);
+  input.value = '';
+  renderTags();
+}
+
+/* ТЕМА */
+function initTheme() {
+  const saved = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  updateThemeBtn(saved);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeBtn(next);
+}
+function updateThemeBtn(t) {
+  document.getElementById('themeIcon').textContent = t === 'dark' ? '☀️' : '🌙';
+  document.getElementById('themeText').textContent = t === 'dark' ? 'Светлая тема' : 'Тёмная тема';
+}
+initTheme();
+
+async function req(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? {Authorization: 'Bearer ' + token} : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || data || res.status);
+  return data;
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+async function register() {
+  try {
+    const r = await req('POST', '/auth/register', {
+      email: document.getElementById('email').value,
+      password: document.getElementById('pass').value,
+      name: document.getElementById('name').value,
+    });
+    token = r.token;
+    localStorage.setItem('token', token);
+    toast('Зарегистрировано!');
+    enterApp();
+  } catch (e) { toast('Ошибка: ' + e.message); }
+}
+async function login() {
+  try {
+    const r = await req('POST', '/auth/login', {
+      email: document.getElementById('email').value,
+      password: document.getElementById('pass').value,
+    });
+    token = r.token;
+    localStorage.setItem('token', token);
+    toast('Вошли!');
+    enterApp();
+  } catch (e) { toast('Ошибка: ' + e.message); }
+}
+
+const DOW = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function renderDow() {
+  document.getElementById('calDow').innerHTML =
+    DOW.map(d => `<div class="cal-dow">${d}</div>`).join('');
+}
+
+async function renderCalendar() {
+  const y = currentMonth.getFullYear();
+  const m = currentMonth.getMonth();
+  document.getElementById('monthLabel').textContent = MONTHS[m] + ' ' + y;
+
+  const monthStr = y + '-' + String(m+1).padStart(2,'0');
+  let days = [];
+  try { days = await req('GET', '/calendar/' + monthStr) || []; } catch(e) { days = []; }
+  if (!Array.isArray(days)) days = [];
+  const map = {};
+  days.forEach(d => map[d.date] = d);
+
+  const first = new Date(y, m, 1);
+  const startDow = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const today = new Date().toISOString().slice(0,10);
+
+  let html = '';
+  for (let i = 0; i < startDow; i++) html += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const info = map[dateStr];
+    let dot = '';
+    if (info) {
+      const cls = info.avg >= 7 ? 'good' : info.avg >= 5 ? 'mid' : 'bad';
+      dot = `<div class="dot ${cls}"></div>`;
+    }
+    const todayCls = dateStr === today ? 'today' : '';
+    html += `<div class="cal-day ${todayCls}" onclick="openDay('${dateStr}')"><div class="num">${d}</div>${dot}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+async function changeMonth(delta) {
+  currentMonth.setMonth(currentMonth.getMonth() + delta);
+  const grid = document.getElementById('calGrid');
+  grid.classList.remove('month-changing');
+  void grid.offsetWidth;
+  grid.classList.add('month-changing');
+  await renderCalendar();
+}
+
+async function openDay(dateStr) {
+  currentDay = dateStr;
+  currentHour = new Date().getHours();
+  updateClock();
+  updateMoodSlider();
+
+  document.getElementById('dayModal').classList.remove('hidden');
+  const prettyDate = new Date(dateStr + 'T12:00:00').toLocaleDateString('ru-RU', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+  document.getElementById('modalDate').textContent =
+    prettyDate.charAt(0).toUpperCase() + prettyDate.slice(1);
+  document.getElementById('modalEntries').innerHTML = '<p>Загрузка...</p>';
+
+  try {
+    const entries = await req('GET', '/moods/' + dateStr);
+    if (!entries || entries.length === 0) {
+      document.getElementById('modalEntries').innerHTML = '<p style="opacity:0.6;">Записей пока нет</p>';
+    } else {
+      const html = entries.map(e => `
+        <div class="entry-item">
+          <div><span class="hour">${e.hour != null ? String(e.hour).padStart(2,'0') + ':00' : 'весь день'}</span> — настроение ${e.score}/10</div>
+          <div>${e.note || ''}</div>
+        </div>
+      `).join('');
+      document.getElementById('modalEntries').innerHTML = html;
+    }
+  } catch(e) {
+    document.getElementById('modalEntries').innerHTML = '<p>Ошибка загрузки</p>';
+  }
+}
+
+function closeDay() {
+  document.getElementById('dayModal').classList.add('hidden');
+}
+
+async function saveMood() {
+  if (!currentDay) return;
+  try {
+    await req('POST', '/moods', {
+      date: currentDay,
+      hour: currentHour,
+      score: parseInt(document.getElementById('mScore').value),
+      note: document.getElementById('mNote').value,
+      tags: Array.from(selectedTags),
+    });
+    toast('Запись сохранена');
+    selectedTags.clear();
+    document.getElementById('mNote').value = '';
+    document.getElementById('mScore').value = 5;
+    updateMoodSlider();
+    renderTags();
+    openDay(currentDay);
+    renderCalendar();
+  } catch(e) { toast('Ошибка: ' + e.message); }
+}
+
+async function loadAnalytics(kind) {
+  try {
+    const r = await req('GET', '/analytics/' + kind);
+    document.getElementById('analyticsOut').textContent = JSON.stringify(r, null, 2);
+  } catch(e) { toast('Ошибка'); }
+}
+
+let chatHistory = [];
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+}
+
+function addChatMessage(role, text) {
+  chatHistory.push({role, text});
+}
+
+function renderChatMessages() {
+  const log = document.getElementById('chatLog');
+  log.innerHTML = chatHistory.map(m =>
+    `<div class="chat-bubble ${m.role === 'user' ? 'system' : 'bot'}">${escapeHtml(m.text)}</div>`
+  ).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function renderChatChart(chart, period, data) {
+  const box = document.getElementById('chatChart');
+  if (!Array.isArray(chart) || chart.length === 0) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+
+  const width = 720, height = 220, padL = 38, padR = 18, padT = 18, padB = 36;
+  const min = 1, max = 10;
+  const usableW = width - padL - padR;
+  const usableH = height - padT - padB;
+  const x = i => chart.length === 1 ? padL + usableW / 2 : padL + i * usableW / (chart.length - 1);
+  const y = v => padT + (max - v) * usableH / (max - min);
+  const points = chart.map((p,i) => `${x(i)},${y(Number(p.avg ?? p.score ?? 0))}`).join(' ');
+  const circles = chart.map((p,i) => {
+    const val = Number(p.avg ?? p.score ?? 0);
+    return `<circle cx="${x(i)}" cy="${y(val)}" r="4.5" fill="var(--accent)"/><text x="${x(i)}" y="${height-10}" text-anchor="middle" font-size="10" fill="var(--text-soft)">${escapeHtml(p.label ?? (p.hour != null ? String(p.hour).padStart(2,'0')+':00' : ''))}</text>`;
+  }).join('');
+  const grid = [1,3,5,7,10].map(v => `<line x1="${padL}" y1="${y(v)}" x2="${width-padR}" y2="${y(v)}" stroke="var(--card-border)"/><text x="${padL-8}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--text-soft)">${v}</text>`).join('');
+  const values = chart.map(p => Number(p.avg ?? p.score ?? 0)).filter(v => Number.isFinite(v));
+  const avg = values.length ? values.reduce((a,b)=>a+b,0)/values.length : 0;
+
+  let statsHtml = '';
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    statsHtml = `<div class="chat-stat-grid">
+      <div class="chat-stat"><b>${Number(data.avg || avg).toFixed(1)}</b><span>среднее</span></div>
+      <div class="chat-stat"><b>${data.count ?? chart.length}</b><span>отметок</span></div>
+      <div class="chat-stat"><b>${data.days_with_data ?? chart.length}</b><span>дней с данными</span></div>
+    </div>`;
+  }
+
+  box.innerHTML = `<div class="chat-chart-title">${period === 'day' ? 'Динамика за день' : period === 'week' ? 'Динамика за неделю' : 'Динамика за месяц'}</div>
+    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="График настроения">
+      ${grid}<polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}
+    </svg>${statsHtml}`;
+  box.classList.remove('hidden');
+}
+
+function renderChat(options) {
+  renderChatMessages();
+  const box = document.getElementById('chatOptions');
+  box.innerHTML = (options || []).map(o =>
+    `<button class="ghost" onclick="chat('${escapeHtml(o.value)}')">${escapeHtml(o.text)}</button>`
+  ).join('');
+}
+
+
+function openChat() {
+  document.getElementById('chatModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  if (chatHistory.length === 0) {
+    chat('start');
+  } else {
+    renderChatMessages();
+    renderChat([]);
+  }
+  setTimeout(() => document.getElementById('chatInput')?.focus(), 120);
+}
+
+function closeChat() {
+  document.getElementById('chatModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+  addChatMessage('user', message);
+  renderChatMessages();
+  document.getElementById('chatOptions').innerHTML = '<span style="color:var(--text-soft);font-size:13px;">Читаю ответ…</span>';
+  try {
+    const r = await req('POST', '/chat', {action:'message', message});
+    addChatMessage('bot', r.message || '');
+    renderChat(r.options || []);
+    renderChatChart(r.chart, r.period, r.data);
+  } catch(e) {
+    addChatMessage('bot', 'Не удалось обработать сообщение: ' + e.message);
+    renderChat([{text:'В начало', value:'start'}]);
+  }
+}
+
+async function chat(action) {
+  const labels = {
+    day:'Разобрать сегодня', week:'Разобрать неделю', month:'Разобрать месяц',
+    day_discuss:'Обсудить найденное', day_chart:'Показать график дня',
+    week_chart:'Показать график недели', week_discuss:'Обсудить изменения недели',
+    month_chart:'Показать график месяца', month_discuss:'Обсудить результаты месяца',
+    advice:'Дать совет'
+  };
+  if (labels[action]) addChatMessage('user', labels[action]);
+  renderChatMessages();
+  document.getElementById('chatOptions').innerHTML = '<span style="color:var(--text-soft);font-size:13px;">Анализирую…</span>';
+  try {
+    const r = await req('POST', '/chat', {action});
+    addChatMessage('bot', r.message || '');
+    renderChat(r.options || []);
+    renderChatChart(r.chart, r.period, r.data);
+  } catch(e) {
+    addChatMessage('bot', 'Не удалось получить ответ: ' + e.message);
+    renderChat([{text:'Попробовать ещё раз', value:action}, {text:'В начало', value:'start'}]);
+  }
+}
+
+async function loadTags() {
+  try {
+    const tags = await req('GET', '/tags');
+    if (Array.isArray(tags)) availableTags = tags;
+  } catch(e) { availableTags = []; }
+  renderTags();
+}
+
+async function enterApp() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('mainScreen').classList.remove('hidden');
+  renderDow();
+  await loadTags();
+  await renderCalendar();
+  updateMoodSlider();
+  document.getElementById('mScore').addEventListener('input', updateMoodSlider);
+}
+
+if (token) {
+  enterApp();
+} else {
+  document.getElementById('authScreen').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
